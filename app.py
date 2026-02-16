@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from datetime import datetime, timedelta
+import sys
 
 st.set_page_config(
     page_title="高山茶销量预测系统",
@@ -13,17 +14,20 @@ st.set_page_config(
 
 @st.cache_data
 def load_sample_data():
-    """加载示例数据"""
+    st.write("DEBUG: load_sample_data() 被调用")
     dates = pd.date_range(start='2025-02-10', periods=90, freq='D')
     sales = np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
     df = pd.DataFrame({
         'date': dates,
         'sales': sales.round(2)
     })
+    st.write(f"DEBUG: 生成数据 {len(df)} 行")
+    st.write(f"DEBUG: 列名 = {df.columns.tolist()}")
+    st.write(f"DEBUG: date 类型 = {df['date'].dtype}")
+    st.write(f"DEBUG: sales 类型 = {df['sales'].dtype}")
     return df
 
 def simple_lstm_predict(history_data, future_days):
-    """简化的LSTM预测模拟（使用移动平均+趋势）"""
     if len(history_data) < 7:
         return history_data[-future_days:] if len(history_data) >= future_days else history_data * future_days
     
@@ -42,12 +46,18 @@ def simple_lstm_predict(history_data, future_days):
 st.title("🍵 高山茶智能销量预测系统")
 st.markdown("基于深度学习(LSTM)的销量预测模型可视化平台")
 
+st.write("---")
+st.write("**DEBUG INFO:**")
+st.write(f"Python版本: {sys.version}")
+st.write(f"Pandas版本: {pd.__version__}")
+st.write(f"NumPy版本: {np.__version__}")
+st.write("---")
+
 tab1, tab2, tab3 = st.tabs(["📊 数据集可视化", "🔮 LSTM销量预测", "📈 预测对比"])
 
 with tab1:
     st.header("数据集可视化分析")
     
-    # 加载数据 - 在列布局外部定义，确保两个列都能访问
     df = load_sample_data()
     
     col1, col2 = st.columns([1, 3])
@@ -69,6 +79,9 @@ with tab1:
         st.subheader("销售趋势图")
         
         chart_type = st.selectbox("图表类型", ["折线图", "柱状图", "面积图"], key="chart1")
+        
+        st.write(f"DEBUG: chart_type = {chart_type}")
+        st.write(f"DEBUG: df 样本 = {df.head()}")
         
         if chart_type == "折线图":
             fig = px.line(df, x='date', y='sales', title='每日销量趋势',
@@ -92,7 +105,10 @@ with tab1:
             template="plotly_white",
             hovermode="x unified"
         )
+        
+        st.write("DEBUG: 准备渲染图表")
         st.plotly_chart(fig, use_container_width=True)
+        st.write("DEBUG: 图表渲染完成")
         
         st.subheader("销量分布分析")
         col_a, col_b = st.columns(2)
