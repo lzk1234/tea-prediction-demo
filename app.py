@@ -47,12 +47,13 @@ tab1, tab2, tab3 = st.tabs(["📊 数据集可视化", "🔮 LSTM销量预测", 
 with tab1:
     st.header("数据集可视化分析")
     
+    # 加载数据 - 在列布局外部定义，确保两个列都能访问
+    df = load_sample_data()
+    
     col1, col2 = st.columns([1, 3])
     
     with col1:
         st.subheader("数据概览")
-        
-        df = load_sample_data()
         
         st.metric("数据条数", len(df))
         st.metric("平均日销量", f"{df['sales'].mean():.2f}")
