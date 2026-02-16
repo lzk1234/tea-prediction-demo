@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from datetime import datetime, timedelta
-import sys
+import plotly.io as pio
 
 st.set_page_config(
     page_title="高山茶销量预测系统",
@@ -14,17 +14,13 @@ st.set_page_config(
 
 @st.cache_data
 def load_sample_data():
-    st.write("DEBUG: load_sample_data() 被调用")
     dates = pd.date_range(start='2025-02-10', periods=90, freq='D')
     sales = np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
     df = pd.DataFrame({
         'date': dates,
         'sales': sales.round(2)
     })
-    st.write(f"DEBUG: 生成数据 {len(df)} 行")
-    st.write(f"DEBUG: 列名 = {df.columns.tolist()}")
-    st.write(f"DEBUG: date 类型 = {df['date'].dtype}")
-    st.write(f"DEBUG: sales 类型 = {df['sales'].dtype}")
+    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
     return df
 
 def simple_lstm_predict(history_data, future_days):
@@ -45,13 +41,6 @@ def simple_lstm_predict(history_data, future_days):
 
 st.title("🍵 高山茶智能销量预测系统")
 st.markdown("基于深度学习(LSTM)的销量预测模型可视化平台")
-
-st.write("---")
-st.write("**DEBUG INFO:**")
-st.write(f"Python版本: {sys.version}")
-st.write(f"Pandas版本: {pd.__version__}")
-st.write(f"NumPy版本: {np.__version__}")
-st.write("---")
 
 tab1, tab2, tab3 = st.tabs(["📊 数据集可视化", "🔮 LSTM销量预测", "📈 预测对比"])
 
@@ -80,9 +69,6 @@ with tab1:
         
         chart_type = st.selectbox("图表类型", ["折线图", "柱状图", "面积图"], key="chart1")
         
-        st.write(f"DEBUG: chart_type = {chart_type}")
-        st.write(f"DEBUG: df 样本 = {df.head()}")
-        
         if chart_type == "折线图":
             fig = px.line(df, x='date', y='sales', title='每日销量趋势',
                          line_shape='spline', markers=True)
@@ -105,10 +91,7 @@ with tab1:
             template="plotly_white",
             hovermode="x unified"
         )
-        
-        st.write("DEBUG: 准备渲染图表")
         st.plotly_chart(fig, use_container_width=True)
-        st.write("DEBUG: 图表渲染完成")
         
         st.subheader("销量分布分析")
         col_a, col_b = st.columns(2)
@@ -164,13 +147,18 @@ with tab2:
         st.subheader("预测结果")
         
         if predict_btn or 'predictions' not in st.session_state:
-            df = load_sample_data()
-            history_data = df['sales'].tail(history_days).tolist()
+            dates = pd.date_range(start='2025-02-10', periods=90, freq='D')
+            sales = np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
+            df = pd.DataFrame({
+                'date': dates.strftime('%Y-%m-%d'),
+                'sales': sales.round(2)
+            })
             
+            history_data = df['sales'].tail(history_days).tolist()
             predictions = simple_lstm_predict(history_data, future_days)
             
-            last_date = df['date'].max()
-            future_dates = [last_date + timedelta(days=i+1) for i in range(len(predictions))]
+            last_date = (pd.Timestamp('2025-02-10') + timedelta(days=89)).strftime('%Y-%m-%d')
+            future_dates = [(pd.Timestamp('2025-02-10') + timedelta(days=89+i+1)).strftime('%Y-%m-%d') for i in range(len(predictions))]
             
             st.session_state.predictions = predictions
             st.session_state.future_dates = future_dates
@@ -192,16 +180,16 @@ with tab2:
             fig_pred = go.Figure()
             
             fig_pred.add_trace(go.Scatter(
-                x=df['date'].tail(30),
-                y=df['sales'].tail(30),
+                x=df['date'].tail(30).tolist(),
+                y=df['sales'].tail(30).tolist(),
                 mode='lines+markers',
                 name='历史销量',
                 line=dict(color='#2E86AB', width=2)
             ))
             
             fig_pred.add_trace(go.Scatter(
-                x=pred_df['date'],
-                y=pred_df['predicted_sales'],
+                x=pred_df['date'].tolist(),
+                y=pred_df['predicted_sales'].tolist(),
                 mode='lines+markers',
                 name='预测销量',
                 line=dict(color='#E94F37', width=2, dash='dash')
@@ -243,11 +231,11 @@ with tab3:
     history_data = df['sales'].tail(history_days_compare).tolist()
     predictions = simple_lstm_predict(history_data, future_days_compare)
     
-    last_date = df['date'].max()
-    future_dates = [last_date + timedelta(days=i+1) for i in range(len(predictions))]
+    last_date_str = df['date'].iloc[-1]
+    future_dates = [(datetime.strptime(last_date_str, '%Y-%m-%d') + timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(len(predictions))]
     
-    all_dates = list(df['date'].tail(history_days_compare)) + future_dates
-    all_sales = list(df['sales'].tail(history_days_compare)) + predictions
+    all_dates = df['date'].tail(history_days_compare).tolist() + future_dates
+    all_sales = df['sales'].tail(history_days_compare).tolist() + predictions
     types = ['历史'] * history_days_compare + ['预测'] * future_days_compare
     
     compare_df = pd.DataFrame({
@@ -275,8 +263,10 @@ with tab3:
         actual_recent = history_data[-future_days_compare:]
         errors = [abs(predictions[i] - actual_recent[i]) for i in range(min(len(predictions), len(actual_recent)))]
         
+        error_dates = [(datetime.strptime(last_date_str, '%Y-%m-%d') + timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(len(errors))]
+        
         error_df = pd.DataFrame({
-            '日期': future_dates[:len(errors)],
+            '日期': error_dates,
             '预测值': predictions[:len(errors)],
             '实际值': actual_recent[:len(errors)],
             '误差': errors
@@ -285,8 +275,6 @@ with tab3:
         col_e1, col_e2 = st.columns(2)
         
         with col_e1:
-            error_df_display = error_df.copy()
-            error_df_display['日期'] = error_df_display['日期'].dt.strftime('%Y-%m-%d')
             fig_error = px.bar(error_df, x='日期', y='误差',
                               title='每日预测误差', color_discrete_sequence=['#FF6B6B'])
             fig_error.update_layout(
