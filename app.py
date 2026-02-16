@@ -4,7 +4,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from datetime import datetime, timedelta
-import plotly.io as pio
 
 st.set_page_config(
     page_title="高山茶销量预测系统",
@@ -17,10 +16,9 @@ def load_sample_data():
     dates = pd.date_range(start='2025-02-10', periods=90, freq='D')
     sales = np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
     df = pd.DataFrame({
-        'date': dates,
+        'date': dates.astype(str),
         'sales': sales.round(2)
     })
-    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
     return df
 
 def simple_lstm_predict(history_data, future_days):
@@ -39,6 +37,14 @@ def simple_lstm_predict(history_data, future_days):
     
     return predictions
 
+def to_date_string(date_val):
+    if isinstance(date_val, str):
+        return date_val
+    elif hasattr(date_val, 'strftime'):
+        return date_val.strftime('%Y-%m-%d')
+    else:
+        return str(date_val)
+
 st.title("🍵 高山茶智能销量预测系统")
 st.markdown("基于深度学习(LSTM)的销量预测模型可视化平台")
 
@@ -48,6 +54,8 @@ with tab1:
     st.header("数据集可视化分析")
     
     df = load_sample_data()
+    df['date'] = df['date'].astype(str)
+    df['sales'] = df['sales'].astype(float)
     
     col1, col2 = st.columns([1, 3])
     
@@ -150,7 +158,7 @@ with tab2:
             dates = pd.date_range(start='2025-02-10', periods=90, freq='D')
             sales = np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
             df = pd.DataFrame({
-                'date': dates.strftime('%Y-%m-%d'),
+                'date': dates.astype(str),
                 'sales': sales.round(2)
             })
             
@@ -169,6 +177,9 @@ with tab2:
             predictions = st.session_state.predictions
             future_dates = st.session_state.future_dates
             df = st.session_state.df
+            
+            df['date'] = df['date'].astype(str)
+            df['sales'] = df['sales'].astype(float)
             
             st.success(f"✅ 预测成功！商品: {product_id}")
             
@@ -217,6 +228,8 @@ with tab3:
     st.header("📈 预测对比分析")
     
     df = load_sample_data()
+    df['date'] = df['date'].astype(str)
+    df['sales'] = df['sales'].astype(float)
     
     st.markdown("### 历史数据 vs 预测结果对比")
     
@@ -231,7 +244,7 @@ with tab3:
     history_data = df['sales'].tail(history_days_compare).tolist()
     predictions = simple_lstm_predict(history_data, future_days_compare)
     
-    last_date_str = df['date'].iloc[-1]
+    last_date_str = str(df['date'].iloc[-1])
     future_dates = [(datetime.strptime(last_date_str, '%Y-%m-%d') + timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(len(predictions))]
     
     all_dates = df['date'].tail(history_days_compare).tolist() + future_dates
