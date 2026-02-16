@@ -14,12 +14,12 @@ st.set_page_config(
 @st.cache_data
 def load_sample_data():
     """加载示例数据"""
-    data = {
-        'date': pd.date_range(start='2025-02-10', periods=90, freq='D'),
-        'sales': np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
-    }
-    df = pd.DataFrame(data)
-    df['sales'] = df['sales'].round(2)
+    dates = pd.date_range(start='2025-02-10', periods=90, freq='D')
+    sales = np.random.uniform(50, 120, 90) + np.sin(np.arange(90) / 7) * 20
+    df = pd.DataFrame({
+        'date': dates,
+        'sales': sales.round(2)
+    })
     return df
 
 def simple_lstm_predict(history_data, future_days):
@@ -71,7 +71,7 @@ with tab1:
         chart_type = st.selectbox("图表类型", ["折线图", "柱状图", "面积图"], key="chart1")
         
         if chart_type == "折线图":
-            fig = px.line(df, x='date', y='sales', title='每日销量趋势', 
+            fig = px.line(df, x='date', y='sales', title='每日销量趋势',
                          line_shape='spline', markers=True)
             fig.update_traces(line_color='#2E86AB', line_width=2)
         elif chart_type == "柱状图":
@@ -80,6 +80,11 @@ with tab1:
         else:
             fig = px.area(df, x='date', y='sales', title='每日销量趋势',
                          color_discrete_sequence=['#2E86AB'])
+        
+        fig.update_xaxes(
+            tickformat="%Y-%m-%d",
+            tickangle=45
+        )
         
         fig.update_layout(
             xaxis_title="日期",
@@ -93,15 +98,22 @@ with tab1:
         col_a, col_b = st.columns(2)
         
         with col_a:
-            fig_hist = px.histogram(df, x='sales', nbins=20, title='销量分布直方图', 
+            fig_hist = px.histogram(df, x='sales', nbins=20, title='销量分布直方图',
                                    color_discrete_sequence=['#2E86AB'])
-            fig_hist.update_layout(template="plotly_white")
+            fig_hist.update_layout(
+                template="plotly_white",
+                xaxis_title="销量",
+                yaxis_title="频数"
+            )
             st.plotly_chart(fig_hist, use_container_width=True)
         
         with col_b:
-            fig_box = px.box(df, y='sales', title='销量箱线图', 
+            fig_box = px.box(df, y='sales', title='销量箱线图',
                            color_discrete_sequence=['#2E86AB'])
-            fig_box.update_layout(template="plotly_white")
+            fig_box.update_layout(
+                template="plotly_white",
+                yaxis_title="销量"
+            )
             st.plotly_chart(fig_box, use_container_width=True)
 
 with tab2:
@@ -232,7 +244,13 @@ with tab3:
                          title='历史销量 vs 预测销量对比',
                          color_discrete_map={'历史': '#2E86AB', '预测': '#E94F37'},
                          barmode='group')
-    fig_compare.update_layout(template="plotly_white")
+    fig_compare.update_layout(
+        template="plotly_white",
+        xaxis_title="日期",
+        yaxis_title="销量",
+        xaxis_tickformat="%Y-%m-%d",
+        xaxis_tickangle=45
+    )
     st.plotly_chart(fig_compare, use_container_width=True)
     
     st.markdown("### 预测误差分析")
@@ -251,9 +269,15 @@ with tab3:
         col_e1, col_e2 = st.columns(2)
         
         with col_e1:
-            fig_error = px.bar(error_df, x='日期', y='误差', 
+            error_df_display = error_df.copy()
+            error_df_display['日期'] = error_df_display['日期'].dt.strftime('%Y-%m-%d')
+            fig_error = px.bar(error_df, x='日期', y='误差',
                               title='每日预测误差', color_discrete_sequence=['#FF6B6B'])
-            fig_error.update_layout(template="plotly_white")
+            fig_error.update_layout(
+                template="plotly_white",
+                xaxis_title="日期",
+                yaxis_title="误差"
+            )
             st.plotly_chart(fig_error, use_container_width=True)
         
         with col_e2:
